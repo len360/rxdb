@@ -13,51 +13,59 @@ export function addDocEqualityToQuery<RxDocType>(
     doc: WithDeleted<RxDocType>,
     query: any
 ) {
-    const ignoreKeys = new Set([
-        modifiedField,
-        deletedField,
-        '_meta',
-        '_attachments',
-        '_rev'
-    ]);
+    // const ignoreKeys = new Set([
+    //     modifiedField,
+    //     deletedField,
+    //     '_meta',
+    //     '_attachments',
+    //     '_rev'
+    // ]);
 
-    for (const key of Object.keys(doc)) {
-        if (
-            ignoreKeys.has(key)
-        ) {
-            continue;
-        }
+    const key = jsonSchema.primaryKey;
+    const v = (doc as any)[key];
+    query = query.eq(key, v);
 
-        const v = (doc as any)[key];
-        const type = typeof v;
+    // for (const key of Object.keys(doc)) {
+    //     if (
+    //         ignoreKeys.has(key)
+    //     ) {
+    //         continue;
+    //     }
 
-        if (type === "string" || type === "number") {
-            query = query.eq(key, v);
-        } else if (type === "boolean" || v === null) {
-            query = query.is(key, v);
-        } else if (type === 'undefined') {
-            query = query.is(key, null);
-        } else {
-            throw new Error(`unknown how to handle type: ${type}`)
-        }
-    }
+    //     const v = (doc as any)[key];
+    //     const type = typeof v;
 
-    const schemaProps: Record<string, any> = jsonSchema.properties;
-    for (const key of Object.keys(schemaProps)) {
-        if (
-            ignoreKeys.has(key) ||
-            Object.hasOwn(doc, key)
-        ) {
-            continue;
-        }
-        query = query.is(key, null);
-    }
+    //     if (type === "string" ){
+    //         query = query.eq(key, v);
+    //     } else if( type === "number") {
+    //         query = query.eq(key, v);
+    //     }else if (type === "boolean" || v === null) {
+    //         query = query.is(key, v);
+    //     } else if (type === 'undefined') {
+    //         query = query.is(key, null);
+    //     } else {
+    //         throw new Error(`unknown how to handle type: ${type}`)
+    //     }
+    // }
 
-    query = query.eq(deletedField, doc._deleted);
-    if (schemaProps[modifiedField]) {
-        query = query.eq(modifiedField, (doc as any)[modifiedField]);
-    }
+    // const schemaProps: Record<string, any> = jsonSchema.properties;
+    // for (const key of Object.keys(schemaProps)) {
+    //     if (
+    //         ignoreKeys.has(key) ||
+    //         Object.hasOwn(doc, key)
+    //     ) {
+    //         continue;
+    //     }
+    //     query = query.is(key, null);
+    // }
 
+    // query = query.eq(deletedField, doc._deleted);
+    // if (schemaProps[modifiedField]) {
+    //     query = query.eq(modifiedField, (doc as any)[modifiedField]);
+    // }
 
+    // query.then((res) => console.log(res))
+    // console.log(query.url);
+    
     return query;
 }

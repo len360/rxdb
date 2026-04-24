@@ -20,6 +20,7 @@ import {
     addDocEqualityToQuery
 } from './helper.ts';
 import { ensureNotFalsy, flatClone, lastOfArray } from '../utils/index.ts';
+import { deepEqual } from 'node:assert';
 
 
 
@@ -199,7 +200,8 @@ export function replicateSupabase<RxDocType>(
 
                 let query = options.client
                     .from(options.tableName)
-                    .update(toRow);
+                    // .update(toRow);
+                    .select()
 
                 query = addDocEqualityToQuery(
                     collection.schema.jsonSchema,
@@ -209,17 +211,34 @@ export function replicateSupabase<RxDocType>(
                     query
                 );
 
-                const { data, error } = await query.select();
+                const { data, error } = await query;
                 if (error) {
                     throw error;
                 }
 
-                if (data && data.length > 0) {
-                    return;
-                } else {
-                    // no match -> conflict
+                if (!data || data.length === 0) {
                     return await fetchById(id);
                 }
+
+                const item = data[0];
+                if (Object.keys(assumedMasterState).every((prop) => item[prop] === assumedMasterState[prop])) {
+                    // UPDATE
+                    await options.client.from(options.tableName).update(toRow).eq(primaryPath, id);
+                    return;
+                }
+
+                return await fetchById(id);
+
+                // SELECT 
+                // IF (MASTER === SELECT_RESULT) -> UPDATE
+                // SINON CONFLIT
+
+                // if (data && data.length > 0) {
+                //     return;
+                // } else {
+                //     // no match -> conflict
+                //     return await fetchById(id);
+                // }
             }
 
             const conflicts: WithDeleted<RxDocType>[] = [];

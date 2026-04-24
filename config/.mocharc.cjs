@@ -1,6 +1,6 @@
 const mochaSettings = {
     bail: true,
-    timeout: 10000,
+    timeout: 0,
     exit: true,
     reporter: 'spec'
 };

@@ -28,10 +28,8 @@ import {
 } from '../plugins/replication-supabase/index.mjs';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
-
-const SUPABASE_TOKEN =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const SUPABASE_URL = 'http://127.0.0.1:54321';
+const SUPABASE_TOKEN = 'sb_publishable_NB_3fb2TNyQF1NQzwkp-Vg_F1MwleB3'; // sb_publishable_NB_3fb2TNyQF1NQzwkp-Vg_F1MwleB3
+const SUPABASE_URL = 'https://pbonvxwsrxpwmdboneiq.supabase.co';
 
 /**
  * Use a low batchSize in all tests
@@ -479,6 +477,32 @@ describe('replication-supabase.test.ts', function () {
             assert.strictEqual(firstDoc.lastName, 'push-modified');
 
             await collection.database.close();
+        });
+
+        it('#7986 does not add all document fields as equality conditions in the PATCH request URL', async () => {
+            await cleanUpServer();
+
+            const collection = await humansCollection.createPrimary(0, undefined, false);
+
+            const replicationState = replicateSupabase<PrimaryHumanDocType>({
+                tableName,
+                client: supabase,
+                replicationIdentifier: randomToken(10),
+                collection,
+                pull: { batchSize },
+                push: { batchSize }
+            });
+            ensureReplicationHasNoErrors(replicationState);
+
+            const commonId = randomToken(10)
+            const doc = await collection.insert(schemaObjects.humanData(commonId, undefined, randomToken(40000)));
+            await replicationState.awaitInSync();
+            
+            await doc.patch({ firstName: '0' })
+        
+            const serverState = await getServerState();
+            assert.strictEqual(serverState.length, 1);
+            await cleanUpServer();
         });
     });
 

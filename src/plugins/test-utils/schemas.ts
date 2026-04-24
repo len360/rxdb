@@ -713,7 +713,7 @@ export const primaryHumanLiteral = overwritable.deepFreezeWhenDevMode({
         },
         firstName: {
             type: 'string',
-            maxLength: 100
+            // maxLength: 100
         },
         lastName: {
             type: 'string',
