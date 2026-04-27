@@ -198,47 +198,20 @@ export function replicateSupabase<RxDocType>(
                 // modified field will be set server-side
                 delete toRow[modifiedField];
 
-                let query = options.client
-                    .from(options.tableName)
-                    // .update(toRow);
-                    .select()
+                try {
+                    const docOnServer: WithDeleted<RxDocType> = await fetchById(id);
+                    
+                    if (Object.keys(assumedMasterState).every((prop) => 
+                        docOnServer[prop as keyof typeof assumedMasterState] === assumedMasterState[prop as keyof typeof assumedMasterState])
+                    ) {
+                        await options.client.from(options.tableName).update(toRow).eq(primaryPath, id).select();
+                        return;
+                    }
 
-                query = addDocEqualityToQuery(
-                    collection.schema.jsonSchema,
-                    deletedField,
-                    modifiedField,
-                    assumedMasterState,
-                    query
-                );
-
-                const { data, error } = await query;
-                if (error) {
+                    return docOnServer;
+                } catch (error) {
                     throw error;
                 }
-
-                if (!data || data.length === 0) {
-                    return await fetchById(id);
-                }
-
-                const item = data[0];
-                if (Object.keys(assumedMasterState).every((prop) => item[prop] === assumedMasterState[prop])) {
-                    // UPDATE
-                    await options.client.from(options.tableName).update(toRow).eq(primaryPath, id);
-                    return;
-                }
-
-                return await fetchById(id);
-
-                // SELECT 
-                // IF (MASTER === SELECT_RESULT) -> UPDATE
-                // SINON CONFLIT
-
-                // if (data && data.length > 0) {
-                //     return;
-                // } else {
-                //     // no match -> conflict
-                //     return await fetchById(id);
-                // }
             }
 
             const conflicts: WithDeleted<RxDocType>[] = [];
