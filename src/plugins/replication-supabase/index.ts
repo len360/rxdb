@@ -198,20 +198,30 @@ export function replicateSupabase<RxDocType>(
                 // modified field will be set server-side
                 delete toRow[modifiedField];
 
-                try {
-                    const docOnServer: WithDeleted<RxDocType> = await fetchById(id);
-                    
-                    if (Object.keys(assumedMasterState).every((prop) => 
-                        docOnServer[prop as keyof typeof assumedMasterState] === assumedMasterState[prop as keyof typeof assumedMasterState])
-                    ) {
-                        await options.client.from(options.tableName).update(toRow).eq(primaryPath, id).select();
-                        return;
-                    }
+                // fetch the current document state from the server
+                const docOnServer: WithDeleted<RxDocType> = await fetchById(id);
 
+                if (!docOnServer) {
+                    // the document does not exist on the server -> treat as conflict
                     return docOnServer;
-                } catch (error) {
-                    throw error;
                 }
+                
+                const isSame = (Object.keys(assumedMasterState) as (keyof WithDeleted<RxDocType>)[])
+                    .every((prop) => docOnServer[prop] === assumedMasterState[prop])
+
+                // check whether the server state matches the assumed master state
+                if (isSame) {
+                    // no conflict -> proceed with the update
+                    await options.client
+                        .from(options.tableName)
+                        .update(toRow)
+                        .eq(primaryPath, id);
+
+                    return;
+                }
+
+                // conflict detected -> return the current server state
+                return docOnServer;
             }
 
             const conflicts: WithDeleted<RxDocType>[] = [];
